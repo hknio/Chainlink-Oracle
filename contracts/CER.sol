@@ -3,16 +3,18 @@ pragma solidity >= 0.6.6;
 import "@chainlink/contracts/src/v0.6/ChainlinkClient.sol";
 import "@chainlink/contracts/src/v0.6/Oracle.sol";
 import "@chainlink/contracts/src/v0.6/vendor/Ownable.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract CER is ChainlinkClient, Ownable {
     uint256 constant private ORACLE_PAYMENT = 1 * LINK;
     Oracle ORACLE;
-    string REQUEST_CERTIFICATE_VALIDATION_JOB_ID = "";
-    string REQUEST_CERTIFICATE_CERTIFICATION_JOB_ID = "";
-    string REQUEST_DEFI_VALIDATION_JOB_ID = "";
-    string REQUEST_DEFI_AUDIT_JOB_ID = "";
-    string REQUEST_DEFI_LAST_AUDIT_DATE_JOB_ID = "";
+    string REQUEST_CERTIFICATE_VALIDATION_JOB_ID;
+    string REQUEST_CERTIFICATE_CERTIFICATION_JOB_ID;
+    string REQUEST_DEFI_VALIDATION_JOB_ID;
+    string REQUEST_DEFI_AUDIT_JOB_ID;
+    string REQUEST_DEFI_LAST_AUDIT_DATE_JOB_ID;
 
+    // TODO: remove before prod deployment
     bool REQUEST_CERTIFICATE_VALIDATION;
     bool REQUEST_CERTIFICATE_CERTIFICATION;
     bool REQUEST_DEFI_VALIDATION;
@@ -44,112 +46,135 @@ contract CER is ChainlinkClient, Ownable {
         int256 indexed lastAuditDate
     );
 
-    constructor() public Ownable() {
-        setPublicChainlinkToken();
-        ORACLE = new Oracle(0x20fE562d797A42Dcb3399062AE9546cd06f63280);
+    constructor(address _link) public Ownable() {
+        // TODO: set link address from a constructor
+        // TODO: add in ts 0x20fE562d797A42Dcb3399062AE9546cd06f63280
+        setChainlinkToken(_link);
+        ORACLE = new Oracle(_link);
+        // TODO: check if this address is the same both on ropsten and mainnet
         ORACLE.setFulfillmentPermission(0xc33E8c08d9354D798786B956625FC07dfad97F61, true);
     }
 
     function requestCertificateValidation(string memory _exchange)
-    public
-    onlyOwner
+        public
     {
+        IERC20(chainlinkTokenAddress()).transferFrom(msg.sender, address(this), ORACLE_PAYMENT);
         bytes memory urlBytes;
         urlBytes = abi.encodePacked("https://cer.live/historical/certificates/validate?exchange=");
         urlBytes = abi.encodePacked(urlBytes, _exchange);
 
-        Chainlink.Request memory req = buildChainlinkRequest(stringToBytes32(REQUEST_CERTIFICATE_VALIDATION_JOB_ID), address(this), this.fulfillCertificateValidation.selector);
+        Chainlink.Request memory req = buildChainlinkRequest(
+            stringToBytes32(REQUEST_CERTIFICATE_VALIDATION_JOB_ID),
+            address(this),
+            this.fulfillCertificateValidation.selector
+        );
         req.add("get", string(urlBytes));
         sendChainlinkRequestTo(address(ORACLE), req, ORACLE_PAYMENT);
     }
 
     function requestCertificateCertification(string memory _exchange)
-    public
-    onlyOwner
+        public
     {
+        IERC20(chainlinkTokenAddress()).transferFrom(msg.sender, address(this), ORACLE_PAYMENT);
         bytes memory urlBytes;
         urlBytes = abi.encodePacked("https://cer.live/historical/certificates?exchange=");
         urlBytes = abi.encodePacked(urlBytes, _exchange);
 
-        Chainlink.Request memory req = buildChainlinkRequest(stringToBytes32(REQUEST_CERTIFICATE_CERTIFICATION_JOB_ID), address(this), this.fulfillCertificateValidation.selector);
+        Chainlink.Request memory req = buildChainlinkRequest(
+            stringToBytes32(REQUEST_CERTIFICATE_CERTIFICATION_JOB_ID),
+            address(this),
+            this.fulfillCertificateValidation.selector
+        );
         req.add("get", string(urlBytes));
         sendChainlinkRequestTo(address(ORACLE), req, ORACLE_PAYMENT);
     }
 
     function requestDefiValidation(string memory _projectName)
-    public
-    onlyOwner
+        public
     {
+        IERC20(chainlinkTokenAddress()).transferFrom(msg.sender, address(this), ORACLE_PAYMENT);
         bytes memory urlBytes;
         urlBytes = abi.encodePacked("https://cer.live/historical/defi/validate?projectName=");
         urlBytes = abi.encodePacked(urlBytes, _projectName);
 
-        Chainlink.Request memory req = buildChainlinkRequest(stringToBytes32(REQUEST_DEFI_VALIDATION_JOB_ID), address(this), this.fulfillDefiValidation.selector);
+        Chainlink.Request memory req = buildChainlinkRequest(
+            stringToBytes32(REQUEST_DEFI_VALIDATION_JOB_ID),
+            address(this),
+            this.fulfillDefiValidation.selector
+        );
         req.add("get", string(urlBytes));
         sendChainlinkRequestTo(address(ORACLE), req, ORACLE_PAYMENT);
     }
 
     function requestDefiAudit(string memory _projectName)
-    public
-    onlyOwner
+        public
     {
+        IERC20(chainlinkTokenAddress()).transferFrom(msg.sender, address(this), ORACLE_PAYMENT);
         bytes memory urlBytes;
         urlBytes = abi.encodePacked("https://cer.live/historical/defi?projectName=");
         urlBytes = abi.encodePacked(urlBytes, _projectName);
 
-        Chainlink.Request memory req = buildChainlinkRequest(stringToBytes32(REQUEST_DEFI_AUDIT_JOB_ID), address(this), this.fulfillDefiValidation.selector);
+        Chainlink.Request memory req = buildChainlinkRequest(
+            stringToBytes32(REQUEST_DEFI_AUDIT_JOB_ID),
+            address(this),
+            this.fulfillDefiValidation.selector
+        );
         req.add("get", string(urlBytes));
         sendChainlinkRequestTo(address(ORACLE), req, ORACLE_PAYMENT);
     }
 
     function requestDefiLastAuditDate(string memory _projectName)
-    public
-    onlyOwner
+        public
     {
+        IERC20(chainlinkTokenAddress()).transferFrom(msg.sender, address(this), ORACLE_PAYMENT);
         bytes memory urlBytes;
         urlBytes = abi.encodePacked("https://cer.live/historical/defi?projectName=");
         urlBytes = abi.encodePacked(urlBytes, _projectName);
 
-        Chainlink.Request memory req = buildChainlinkRequest(stringToBytes32(REQUEST_DEFI_LAST_AUDIT_DATE_JOB_ID), address(this), this.fulfillDefiValidation.selector);
+        Chainlink.Request memory req = buildChainlinkRequest(
+            stringToBytes32(REQUEST_DEFI_LAST_AUDIT_DATE_JOB_ID),
+            address(this),
+            this.fulfillDefiValidation.selector
+        );
         req.add("get", string(urlBytes));
         sendChainlinkRequestTo(address(ORACLE), req, ORACLE_PAYMENT);
     }
 
     function fulfillCertificateValidation(bytes32 _requestId, bool _valid)
-    public
-    recordChainlinkFulfillment(_requestId)
+        public
+        recordChainlinkFulfillment(_requestId)
     {
         emit RequestCertificateValidationFulfilled(_requestId, _valid);
         REQUEST_CERTIFICATE_VALIDATION = true;
     }
 
     function fulfillCertificateCertification(bytes32 _requestId, int256 _certification)
-    public
-    recordChainlinkFulfillment(_requestId)
+        public
+        recordChainlinkFulfillment(_requestId)
     {
         emit RequestCertificateCertificationFulfilled(_requestId, _certification);
         REQUEST_CERTIFICATE_CERTIFICATION = true;
     }
 
     function fulfillDefiValidation(bytes32 _requestId, bool _valid)
-    public
-    recordChainlinkFulfillment(_requestId)
+        public
+        recordChainlinkFulfillment(_requestId)
     {
         emit RequestDefiValidationFulfilled(_requestId, _valid);
         REQUEST_DEFI_VALIDATION = true;
     }
 
     function fulfillDefiAudit(bytes32 _requestId, string memory _audit)
-    public
-    recordChainlinkFulfillment(_requestId)
+        public
+        recordChainlinkFulfillment(_requestId)
     {
         emit RequestDefiAuditFulfilled(_requestId, _audit);
         REQUEST_DEFI_AUDIT = true;
     }
 
     function fulfillDefiLastAuditDate(bytes32 _requestId, int256 _lastAuditDate)
-    public
-    recordChainlinkFulfillment(_requestId)
+        public
+        recordChainlinkFulfillment(_requestId)
     {
         emit RequestDefiLastAuditDateFulfilled(_requestId, _lastAuditDate);
         REQUEST_DEFI_LAST_AUDIT_DATE = true;
@@ -170,8 +195,7 @@ contract CER is ChainlinkClient, Ownable {
         bytes4 _callbackFunctionId,
         uint256 _expiration
     )
-    public
-    onlyOwner
+        public
     {
         cancelChainlinkRequest(_requestId, _payment, _callbackFunctionId, _expiration);
     }
