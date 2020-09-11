@@ -6,7 +6,6 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract CER is ChainlinkClient, Ownable {
     uint256 constant private ORACLE_PAYMENT = 1 * LINK;
-    address private ORACLE_CONTRACT_ADDRESS;
     string private REQUEST_VALIDATION_JOB_ID;
     string private REQUEST_CERTIFICATE_CERTIFICATION_JOB_ID;
     string private REQUEST_DEFI_AUDIT_JOB_ID;
@@ -55,7 +54,7 @@ contract CER is ChainlinkClient, Ownable {
         public
     {
         setChainlinkToken(_link);
-        ORACLE_CONTRACT_ADDRESS = _oracle;
+        setChainlinkOracle(_oracle);
         REQUEST_VALIDATION_JOB_ID = _validationJobId;
         REQUEST_CERTIFICATE_CERTIFICATION_JOB_ID = _certificateCertificationJobId;
         REQUEST_DEFI_AUDIT_JOB_ID = _defiAuditJobId;
@@ -79,7 +78,7 @@ contract CER is ChainlinkClient, Ownable {
     function requestCertificateValidation(string memory _exchange)
         public
     {
-        IERC20(chainlinkTokenAddress()).transferFrom(msg.sender, address(this), ORACLE_PAYMENT);
+        require(IERC20(chainlinkTokenAddress()).transferFrom(msg.sender, address(this), ORACLE_PAYMENT), "Unable to transfer");
         bytes memory urlBytes;
         urlBytes = abi.encodePacked("https://cer.live/historical/certificates/validate?exchange=");
         urlBytes = abi.encodePacked(urlBytes, _exchange);
@@ -90,13 +89,13 @@ contract CER is ChainlinkClient, Ownable {
             this.fulfillCertificateValidation.selector
         );
         req.add("get", string(urlBytes));
-        sendChainlinkRequestTo(ORACLE_CONTRACT_ADDRESS, req, ORACLE_PAYMENT);
+        sendChainlinkRequestTo(chainlinkOracleAddress(), req, ORACLE_PAYMENT);
     }
 
     function requestCertificateCertification(string memory _exchange)
         public
     {
-        IERC20(chainlinkTokenAddress()).transferFrom(msg.sender, address(this), ORACLE_PAYMENT);
+        require(IERC20(chainlinkTokenAddress()).transferFrom(msg.sender, address(this), ORACLE_PAYMENT), "Unable to transfer");
         bytes memory urlBytes;
         urlBytes = abi.encodePacked("https://cer.live/historical/certificates?exchange=");
         urlBytes = abi.encodePacked(urlBytes, _exchange);
@@ -108,13 +107,13 @@ contract CER is ChainlinkClient, Ownable {
         );
 
         req.add("get", string(urlBytes));
-        sendChainlinkRequestTo(ORACLE_CONTRACT_ADDRESS, req, ORACLE_PAYMENT);
+        sendChainlinkRequestTo(chainlinkOracleAddress(), req, ORACLE_PAYMENT);
     }
 
     function requestDefiValidation(string memory _projectName)
         public
     {
-        IERC20(chainlinkTokenAddress()).transferFrom(msg.sender, address(this), ORACLE_PAYMENT);
+        require(IERC20(chainlinkTokenAddress()).transferFrom(msg.sender, address(this), ORACLE_PAYMENT), "Unable to transfer");
         bytes memory urlBytes;
         urlBytes = abi.encodePacked("https://cer.live/historical/defi/validate?projectName=");
         urlBytes = abi.encodePacked(urlBytes, _projectName);
@@ -125,13 +124,13 @@ contract CER is ChainlinkClient, Ownable {
             this.fulfillDefiValidation.selector
         );
         req.add("get", string(urlBytes));
-        sendChainlinkRequestTo(ORACLE_CONTRACT_ADDRESS, req, ORACLE_PAYMENT);
+        sendChainlinkRequestTo(chainlinkOracleAddress(), req, ORACLE_PAYMENT);
     }
 
     function requestDefiAudit(string memory _projectName)
         public
     {
-         IERC20(chainlinkTokenAddress()).transferFrom(msg.sender, address(this), ORACLE_PAYMENT);
+        require(IERC20(chainlinkTokenAddress()).transferFrom(msg.sender, address(this), ORACLE_PAYMENT), "Unable to transfer");
         bytes memory urlBytes;
         urlBytes = abi.encodePacked("https://cer.live/historical/defi?projectName=");
         urlBytes = abi.encodePacked(urlBytes, _projectName);
@@ -142,13 +141,13 @@ contract CER is ChainlinkClient, Ownable {
             this.fulfillDefiAudit.selector
         );
         req.add("get", string(urlBytes));
-        sendChainlinkRequestTo(ORACLE_CONTRACT_ADDRESS, req, ORACLE_PAYMENT);
+        sendChainlinkRequestTo(chainlinkOracleAddress(), req, ORACLE_PAYMENT);
     }
 
     function requestDefiLastAuditDate(string memory _projectName)
         public
     {
-         IERC20(chainlinkTokenAddress()).transferFrom(msg.sender, address(this), ORACLE_PAYMENT);
+        require(IERC20(chainlinkTokenAddress()).transferFrom(msg.sender, address(this), ORACLE_PAYMENT), "Unable to transfer");
         bytes memory urlBytes;
         urlBytes = abi.encodePacked("https://cer.live/historical/defi?projectName=");
         urlBytes = abi.encodePacked(urlBytes, _projectName);
@@ -159,7 +158,7 @@ contract CER is ChainlinkClient, Ownable {
             this.fulfillDefiLastAuditDate.selector
         );
         req.add("get", string(urlBytes));
-        sendChainlinkRequestTo(ORACLE_CONTRACT_ADDRESS, req, ORACLE_PAYMENT);
+        sendChainlinkRequestTo(chainlinkOracleAddress(), req, ORACLE_PAYMENT);
     }
 
     function fulfillCertificateValidation(bytes32 _requestId, bool _valid)
