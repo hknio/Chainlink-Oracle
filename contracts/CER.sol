@@ -6,11 +6,11 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract CER is ChainlinkClient, Ownable {
     uint256 constant private ORACLE_PAYMENT = 1 * LINK;
-    address ORACLE_CONTRACT_ADDRESS;
-    string REQUEST_VALIDATION_JOB_ID = "0171804950a447eea3c64ce1419552c4";
-    string REQUEST_CERTIFICATE_CERTIFICATION_JOB_ID = "bafb4e874c3e4f3399988c975fc63fd1";
-    string REQUEST_DEFI_AUDIT_JOB_ID = "9a9d94a83fc8481490592437e2ccb310";
-    string REQUEST_DEFI_LAST_AUDIT_DATE_JOB_ID = "1da693eec5624f77b7c890dcfb9f4637";
+    address private ORACLE_CONTRACT_ADDRESS;
+    string private REQUEST_VALIDATION_JOB_ID;
+    string private REQUEST_CERTIFICATE_CERTIFICATION_JOB_ID;
+    string private REQUEST_DEFI_AUDIT_JOB_ID;
+    string private REQUEST_DEFI_LAST_AUDIT_DATE_JOB_ID;
 
     // TODO: remove before prod deployment
     bool public REQUEST_CERTIFICATE_VALIDATION;
@@ -44,18 +44,31 @@ contract CER is ChainlinkClient, Ownable {
         int256 indexed lastAuditDate
     );
 
-    constructor(address _link, address _oracle) public Ownable() {
-        ORACLE_CONTRACT_ADDRESS = _oracle;
-        setChainlinkToken(_link);
-    }
-
-    function updateJobIds(
+    constructor(
+        address _link,
+        address _oracle,
         string memory _validationJobId,
         string memory _certificateCertificationJobId,
         string memory _defiLastAuditDateJobId,
         string memory _defiAuditJobId
     )
-    public
+        public
+    {
+        setChainlinkToken(_link);
+        ORACLE_CONTRACT_ADDRESS = _oracle;
+        REQUEST_VALIDATION_JOB_ID = _validationJobId;
+        REQUEST_CERTIFICATE_CERTIFICATION_JOB_ID = _certificateCertificationJobId;
+        REQUEST_DEFI_AUDIT_JOB_ID = _defiAuditJobId;
+        REQUEST_DEFI_LAST_AUDIT_DATE_JOB_ID = _defiLastAuditDateJobId;
+    }
+
+    function updateJobIds(
+        string calldata _validationJobId,
+        string calldata _certificateCertificationJobId,
+        string calldata _defiLastAuditDateJobId,
+        string calldata _defiAuditJobId
+    )
+        external
     {
         REQUEST_VALIDATION_JOB_ID = _validationJobId;
         REQUEST_CERTIFICATE_CERTIFICATION_JOB_ID = _certificateCertificationJobId;
@@ -151,7 +164,7 @@ contract CER is ChainlinkClient, Ownable {
 
     function fulfillCertificateValidation(bytes32 _requestId, bool _valid)
         public
-    recordChainlinkFulfillment(_requestId)
+        recordChainlinkFulfillment(_requestId)
     {
         emit RequestCertificateValidationFulfilled(_requestId, _valid);
         REQUEST_CERTIFICATE_VALIDATION = _valid;
@@ -159,7 +172,7 @@ contract CER is ChainlinkClient, Ownable {
 
     function fulfillCertificateCertification(bytes32 _requestId, int256 _certification)
         public
-    recordChainlinkFulfillment(_requestId)
+        recordChainlinkFulfillment(_requestId)
     {
         emit RequestCertificateCertificationFulfilled(_requestId, _certification);
         REQUEST_CERTIFICATE_CERTIFICATION = _certification;
@@ -167,7 +180,7 @@ contract CER is ChainlinkClient, Ownable {
 
     function fulfillDefiValidation(bytes32 _requestId, bool _valid)
         public
-    recordChainlinkFulfillment(_requestId)
+        recordChainlinkFulfillment(_requestId)
     {
         emit RequestDefiValidationFulfilled(_requestId, _valid);
         REQUEST_DEFI_VALIDATION = _valid;
@@ -175,7 +188,7 @@ contract CER is ChainlinkClient, Ownable {
 
     function fulfillDefiAudit(bytes32 _requestId, bytes32 _audit)
         public
-    recordChainlinkFulfillment(_requestId)
+        recordChainlinkFulfillment(_requestId)
     {
         emit RequestDefiAuditFulfilled(_requestId, _audit);
         REQUEST_DEFI_AUDIT = _audit;
@@ -183,30 +196,10 @@ contract CER is ChainlinkClient, Ownable {
 
     function fulfillDefiLastAuditDate(bytes32 _requestId, int256 _lastAuditDate)
         public
-    recordChainlinkFulfillment(_requestId)
+        recordChainlinkFulfillment(_requestId)
     {
         emit RequestDefiLastAuditDateFulfilled(_requestId, _lastAuditDate);
         REQUEST_DEFI_LAST_AUDIT_DATE = _lastAuditDate;
-    }
-
-    function getChainlinkToken() public view returns (address) {
-        return chainlinkTokenAddress();
-    }
-
-    function withdrawLink() public onlyOwner {
-        LinkTokenInterface link = LinkTokenInterface(chainlinkTokenAddress());
-        require(link.transfer(msg.sender, link.balanceOf(address(this))), "Unable to transfer");
-    }
-
-    function cancelRequest(
-        bytes32 _requestId,
-        uint256 _payment,
-        bytes4 _callbackFunctionId,
-        uint256 _expiration
-    )
-        public
-    {
-        cancelChainlinkRequest(_requestId, _payment, _callbackFunctionId, _expiration);
     }
 
     function stringToBytes32(string memory source) private pure returns (bytes32 result) {
