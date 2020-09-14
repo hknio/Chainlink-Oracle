@@ -5,17 +5,17 @@ import "@chainlink/contracts/src/v0.6/vendor/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract CER is ChainlinkClient, Ownable {
-    uint256 constant private ORACLE_PAYMENT = 1 * LINK;
+    uint256 private ORACLE_PAYMENT;
     string private REQUEST_VALIDATION_JOB_ID;
     string private REQUEST_CERTIFICATE_CERTIFICATION_JOB_ID;
     string private REQUEST_DEFI_AUDIT_JOB_ID;
     string private REQUEST_DEFI_LAST_AUDIT_DATE_JOB_ID;
 
-    mapping (string => uint) internal _certificationRatingByExchange;
-    mapping (string => bytes32) internal _defiAuditByProject;
-    mapping (string => uint) internal _defiLastAuditDateByProject;
-    mapping (bytes32 => string) internal _exchangeNameByRequestId;
-    mapping (bytes32 => string) internal _projectNameByRequestId;
+    mapping (string => uint) private _certificationRatingByExchange;
+    mapping (string => bytes32) private _defiAuditByProject;
+    mapping (string => uint) private _defiLastAuditDateByProject;
+    mapping (bytes32 => string) private _exchangeNameByRequestId;
+    mapping (bytes32 => string) private _projectNameByRequestId;
 
     event RequestCertificateValidationFulfilled(
         bytes32 indexed requestId,
@@ -48,7 +48,8 @@ contract CER is ChainlinkClient, Ownable {
         string memory _validationJobId,
         string memory _certificateCertificationJobId,
         string memory _defiLastAuditDateJobId,
-        string memory _defiAuditJobId
+        string memory _defiAuditJobId,
+        uint256 _oraclePayment
     )
         public
     {
@@ -58,6 +59,7 @@ contract CER is ChainlinkClient, Ownable {
         REQUEST_CERTIFICATE_CERTIFICATION_JOB_ID = _certificateCertificationJobId;
         REQUEST_DEFI_AUDIT_JOB_ID = _defiAuditJobId;
         REQUEST_DEFI_LAST_AUDIT_DATE_JOB_ID = _defiLastAuditDateJobId;
+        ORACLE_PAYMENT = _oraclePayment;
     }
 
     function certificationRatingByExchange(string calldata exchange) external view returns (uint) {
@@ -76,6 +78,10 @@ contract CER is ChainlinkClient, Ownable {
         return (_defiAuditByProject[project], _defiLastAuditDateByProject[project]);
     }
 
+    function udpateOraclePayment(uint256 _oraclePayment) external onlyOwner {
+        ORACLE_PAYMENT = _oraclePayment;
+    }
+
     function updateJobIds(
         string calldata _validationJobId,
         string calldata _certificateCertificationJobId,
@@ -91,8 +97,8 @@ contract CER is ChainlinkClient, Ownable {
         REQUEST_DEFI_LAST_AUDIT_DATE_JOB_ID = _defiLastAuditDateJobId;
     }
 
-    function requestCertificateValidation(string memory _exchange)
-        public
+    function requestCertificateValidation(string calldata _exchange)
+        external
     {
         require(IERC20(chainlinkTokenAddress()).transferFrom(msg.sender, address(this), ORACLE_PAYMENT), "Unable to transfer");
         bytes memory urlBytes;
@@ -109,8 +115,8 @@ contract CER is ChainlinkClient, Ownable {
         _exchangeNameByRequestId[id] = _exchange;
     }
 
-    function requestCertificateCertification(string memory _exchange)
-        public
+    function requestCertificateCertification(string calldata _exchange)
+        external
     {
         require(IERC20(chainlinkTokenAddress()).transferFrom(msg.sender, address(this), ORACLE_PAYMENT), "Unable to transfer");
         bytes memory urlBytes;
@@ -128,8 +134,8 @@ contract CER is ChainlinkClient, Ownable {
         _exchangeNameByRequestId[id] = _exchange;
     }
 
-    function requestDefiValidation(string memory _projectName)
-        public
+    function requestDefiValidation(string calldata _projectName)
+        external
     {
         require(IERC20(chainlinkTokenAddress()).transferFrom(msg.sender, address(this), ORACLE_PAYMENT), "Unable to transfer");
         bytes memory urlBytes;
@@ -146,8 +152,8 @@ contract CER is ChainlinkClient, Ownable {
         _projectNameByRequestId[id] = _projectName;
     }
 
-    function requestDefiAudit(string memory _projectName)
-        public
+    function requestDefiAudit(string calldata _projectName)
+        external
     {
         require(IERC20(chainlinkTokenAddress()).transferFrom(msg.sender, address(this), ORACLE_PAYMENT), "Unable to transfer");
         bytes memory urlBytes;
@@ -164,8 +170,8 @@ contract CER is ChainlinkClient, Ownable {
         _projectNameByRequestId[id] = _projectName;
     }
 
-    function requestDefiLastAuditDate(string memory _projectName)
-        public
+    function requestDefiLastAuditDate(string calldata _projectName)
+        external
     {
         require(IERC20(chainlinkTokenAddress()).transferFrom(msg.sender, address(this), ORACLE_PAYMENT), "Unable to transfer");
         bytes memory urlBytes;
@@ -183,7 +189,7 @@ contract CER is ChainlinkClient, Ownable {
     }
 
     function fulfillCertificateValidation(bytes32 _requestId, bool _valid)
-        public
+        external
         recordChainlinkFulfillment(_requestId)
     {
         emit RequestCertificateValidationFulfilled(_requestId, _valid);
@@ -194,7 +200,7 @@ contract CER is ChainlinkClient, Ownable {
     }
 
     function fulfillCertificateCertification(bytes32 _requestId, uint _certification)
-        public
+        external
         recordChainlinkFulfillment(_requestId)
     {
         emit RequestCertificateCertificationFulfilled(_requestId, _certification);
@@ -203,7 +209,7 @@ contract CER is ChainlinkClient, Ownable {
     }
 
     function fulfillDefiValidation(bytes32 _requestId, bool _valid)
-        public
+        external
         recordChainlinkFulfillment(_requestId)
     {
         emit RequestDefiValidationFulfilled(_requestId, _valid);
@@ -215,7 +221,7 @@ contract CER is ChainlinkClient, Ownable {
     }
 
     function fulfillDefiAudit(bytes32 _requestId, bytes32 _audit)
-        public
+        external
         recordChainlinkFulfillment(_requestId)
     {
         emit RequestDefiAuditFulfilled(_requestId, _audit);
@@ -224,7 +230,7 @@ contract CER is ChainlinkClient, Ownable {
     }
 
     function fulfillDefiLastAuditDate(bytes32 _requestId, uint _lastAuditDate)
-        public
+        external
         recordChainlinkFulfillment(_requestId)
     {
         emit RequestDefiLastAuditDateFulfilled(_requestId, _lastAuditDate);
