@@ -11,12 +11,11 @@ contract CER is ChainlinkClient, Ownable {
     string private REQUEST_DEFI_AUDIT_JOB_ID;
     string private REQUEST_DEFI_LAST_AUDIT_DATE_JOB_ID;
 
-    // TODO: remove before prod deployment
-    bool public REQUEST_CERTIFICATE_VALIDATION;
-    int256 public REQUEST_CERTIFICATE_CERTIFICATION;
-    bool public REQUEST_DEFI_VALIDATION;
-    bytes32 public REQUEST_DEFI_AUDIT;
-    int256 public REQUEST_DEFI_LAST_AUDIT_DATE;
+    mapping (string => uint) internal _certificationRatingByExchange;
+    mapping (string => bytes32) internal _defiAuditByProject;
+    mapping (string => uint) internal _defiLastAuditDateByProject;
+    mapping (bytes32 => string) internal _exchangeNameByRequestId;
+    mapping (bytes32 => string) internal _projectNameByRequestId;
 
     event RequestCertificateValidationFulfilled(
         bytes32 indexed requestId,
@@ -25,7 +24,7 @@ contract CER is ChainlinkClient, Ownable {
 
     event RequestCertificateCertificationFulfilled(
         bytes32 indexed requestId,
-        int256 indexed certification
+        uint indexed certification
     );
 
     event RequestDefiValidationFulfilled(
@@ -40,7 +39,7 @@ contract CER is ChainlinkClient, Ownable {
 
     event RequestDefiLastAuditDateFulfilled(
         bytes32 indexed requestId,
-        int256 indexed lastAuditDate
+        uint indexed lastAuditDate
     );
 
     constructor(
@@ -61,6 +60,22 @@ contract CER is ChainlinkClient, Ownable {
         REQUEST_DEFI_LAST_AUDIT_DATE_JOB_ID = _defiLastAuditDateJobId;
     }
 
+    function certificationRatingByExchange(string calldata exchange) external view returns (uint) {
+        return _certificationRatingByExchange[exchange];
+    }
+
+    function defiAuditByProject(string calldata project) external view returns (bytes32) {
+        return _defiAuditByProject[project];
+    }
+
+    function defiLastAuditDateByProject(string calldata project) external view returns (uint) {
+        return _defiLastAuditDateByProject[project];
+    }
+
+    function defiInfoByProject(string calldata project) external view returns (bytes32 audit, uint lastAuditDate) {
+        return (_defiAuditByProject[project], _defiLastAuditDateByProject[project]);
+    }
+
     function updateJobIds(
         string calldata _validationJobId,
         string calldata _certificateCertificationJobId,
@@ -68,6 +83,7 @@ contract CER is ChainlinkClient, Ownable {
         string calldata _defiAuditJobId
     )
         external
+        onlyOwner
     {
         REQUEST_VALIDATION_JOB_ID = _validationJobId;
         REQUEST_CERTIFICATE_CERTIFICATION_JOB_ID = _certificateCertificationJobId;
@@ -89,7 +105,8 @@ contract CER is ChainlinkClient, Ownable {
             this.fulfillCertificateValidation.selector
         );
         req.add("get", string(urlBytes));
-        sendChainlinkRequestTo(chainlinkOracleAddress(), req, ORACLE_PAYMENT);
+        bytes32 id = sendChainlinkRequestTo(chainlinkOracleAddress(), req, ORACLE_PAYMENT);
+        _exchangeNameByRequestId[id] = _exchange;
     }
 
     function requestCertificateCertification(string memory _exchange)
@@ -107,7 +124,8 @@ contract CER is ChainlinkClient, Ownable {
         );
 
         req.add("get", string(urlBytes));
-        sendChainlinkRequestTo(chainlinkOracleAddress(), req, ORACLE_PAYMENT);
+        bytes32 id = sendChainlinkRequestTo(chainlinkOracleAddress(), req, ORACLE_PAYMENT);
+        _exchangeNameByRequestId[id] = _exchange;
     }
 
     function requestDefiValidation(string memory _projectName)
@@ -124,7 +142,8 @@ contract CER is ChainlinkClient, Ownable {
             this.fulfillDefiValidation.selector
         );
         req.add("get", string(urlBytes));
-        sendChainlinkRequestTo(chainlinkOracleAddress(), req, ORACLE_PAYMENT);
+        bytes32 id = sendChainlinkRequestTo(chainlinkOracleAddress(), req, ORACLE_PAYMENT);
+        _projectNameByRequestId[id] = _projectName;
     }
 
     function requestDefiAudit(string memory _projectName)
@@ -141,7 +160,8 @@ contract CER is ChainlinkClient, Ownable {
             this.fulfillDefiAudit.selector
         );
         req.add("get", string(urlBytes));
-        sendChainlinkRequestTo(chainlinkOracleAddress(), req, ORACLE_PAYMENT);
+        bytes32 id = sendChainlinkRequestTo(chainlinkOracleAddress(), req, ORACLE_PAYMENT);
+        _projectNameByRequestId[id] = _projectName;
     }
 
     function requestDefiLastAuditDate(string memory _projectName)
@@ -158,7 +178,8 @@ contract CER is ChainlinkClient, Ownable {
             this.fulfillDefiLastAuditDate.selector
         );
         req.add("get", string(urlBytes));
-        sendChainlinkRequestTo(chainlinkOracleAddress(), req, ORACLE_PAYMENT);
+        bytes32 id = sendChainlinkRequestTo(chainlinkOracleAddress(), req, ORACLE_PAYMENT);
+        _projectNameByRequestId[id] = _projectName;
     }
 
     function fulfillCertificateValidation(bytes32 _requestId, bool _valid)
@@ -166,15 +187,19 @@ contract CER is ChainlinkClient, Ownable {
         recordChainlinkFulfillment(_requestId)
     {
         emit RequestCertificateValidationFulfilled(_requestId, _valid);
-        REQUEST_CERTIFICATE_VALIDATION = _valid;
+        if (!_valid) {
+            delete _certificationRatingByExchange[_exchangeNameByRequestId[_requestId]];
+        }
+        delete _exchangeNameByRequestId[_requestId];
     }
 
-    function fulfillCertificateCertification(bytes32 _requestId, int256 _certification)
+    function fulfillCertificateCertification(bytes32 _requestId, uint _certification)
         public
         recordChainlinkFulfillment(_requestId)
     {
         emit RequestCertificateCertificationFulfilled(_requestId, _certification);
-        REQUEST_CERTIFICATE_CERTIFICATION = _certification;
+        _certificationRatingByExchange[_exchangeNameByRequestId[_requestId]] = _certification;
+        delete _exchangeNameByRequestId[_requestId];
     }
 
     function fulfillDefiValidation(bytes32 _requestId, bool _valid)
@@ -182,7 +207,11 @@ contract CER is ChainlinkClient, Ownable {
         recordChainlinkFulfillment(_requestId)
     {
         emit RequestDefiValidationFulfilled(_requestId, _valid);
-        REQUEST_DEFI_VALIDATION = _valid;
+        if (!_valid) {
+            delete _defiLastAuditDateByProject[_projectNameByRequestId[_requestId]];
+            delete _defiAuditByProject[_projectNameByRequestId[_requestId]];
+        }
+        delete _projectNameByRequestId[_requestId];
     }
 
     function fulfillDefiAudit(bytes32 _requestId, bytes32 _audit)
@@ -190,15 +219,17 @@ contract CER is ChainlinkClient, Ownable {
         recordChainlinkFulfillment(_requestId)
     {
         emit RequestDefiAuditFulfilled(_requestId, _audit);
-        REQUEST_DEFI_AUDIT = _audit;
+        _defiAuditByProject[_projectNameByRequestId[_requestId]] = _audit;
+        delete _projectNameByRequestId[_requestId];
     }
 
-    function fulfillDefiLastAuditDate(bytes32 _requestId, int256 _lastAuditDate)
+    function fulfillDefiLastAuditDate(bytes32 _requestId, uint _lastAuditDate)
         public
         recordChainlinkFulfillment(_requestId)
     {
         emit RequestDefiLastAuditDateFulfilled(_requestId, _lastAuditDate);
-        REQUEST_DEFI_LAST_AUDIT_DATE = _lastAuditDate;
+        _defiLastAuditDateByProject[_projectNameByRequestId[_requestId]] = _lastAuditDate;
+        delete _projectNameByRequestId[_requestId];
     }
 
     function stringToBytes32(string memory source) private pure returns (bytes32 result) {
