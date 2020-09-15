@@ -17,7 +17,7 @@ REQUEST_DEFI_LAST_AUDIT_DATE_JOB_ID={REQUEST_DEFI_LAST_AUDIT_DATE_JOB_ID}
 REQUEST_DEFI_BUG_BOUNTY_JOB_ID={REQUEST_DEFI_BUG_BOUNTY_JOB_ID}
 ```
 4. Run `npm run rebuild` in project root directory
-5. Deploy oracle `npx buidler run --network <your-network> scripts/deploy_oracle.ts`
+5. Deploy oracle `GAS_PRICE_GWEI={GAS_PRICE_GWEI} npx buidler run --network <your-network> scripts/deploy_oracle.ts`
 6. Deploy contract `GAS_PRICE_GWEI={GAS_PRICE_GWEI} npx buidler run --network <your-network> scripts/deploy.ts`
 
 #  Boilerplate
