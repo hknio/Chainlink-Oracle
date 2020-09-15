@@ -8,7 +8,7 @@ async function main() {
   const gasPrice = ethers.utils.parseUnits(gasPriceString, 9);
   const overrides: TransactionOverrides = { gasPrice: gasPrice };
   const linkAddress = assertNotEmpty('LINK_CONTRACT_ADDRESS', process.env.LINK_CONTRACT_ADDRESS);
-  const oracleAddress = assertNotEmpty('SYMBOL', process.env.SYMBOL);
+  const oracleAddress = assertNotEmpty('ORACLE_CONTRACT_ADDRESS', process.env.ORACLE_CONTRACT_ADDRESS);
   const validationJobId = assertNotEmpty('REQUEST_VALIDATION_JOB_ID', process.env.REQUEST_VALIDATION_JOB_ID);
   const certificateCybersecurityScoreJobId = assertNotEmpty(
     'REQUEST_CERTIFICATE_CYBERSECURITY_SCORE_JOB_ID',
@@ -52,7 +52,7 @@ async function main() {
     defiAuditJobId,
     defiLastAuditDateJobId,
     defiBugBountyJobId,
-    10 ** 18,
+    ethers.utils.parseUnits('0.1', 18), // LINK payment
     overrides,
   );
   console.log('Deployed CER contract to:', CER.address);

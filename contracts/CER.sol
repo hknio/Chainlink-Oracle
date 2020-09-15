@@ -3,10 +3,10 @@ pragma solidity >= 0.6.6;
 import "@chainlink/contracts/src/v0.6/ChainlinkClient.sol";
 import "@chainlink/contracts/src/v0.6/vendor/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@chainlink/contracts/src/v0.6/interfaces/OracleInterface.sol";
+import "./interfaces/ICER.sol";
 
-contract CER is ChainlinkClient, Ownable {
-    uint256 private ORACLE_PAYMENT;
-
+contract CER is ICER, ChainlinkClient, Ownable {
     string private REQUEST_VALIDATION_JOB_ID;
 
     string private REQUEST_CERTIFICATE_CYBERSECURITY_SCORE_JOB_ID;
@@ -19,68 +19,20 @@ contract CER is ChainlinkClient, Ownable {
     string private REQUEST_DEFI_LAST_AUDIT_DATE_JOB_ID;
     string private REQUEST_DEFI_BUG_BOUNTY_JOB_ID;
 
+    uint public override oraclePayment;
+
     mapping (bytes32 => string) private _exchangeNameByRequestId;
     mapping (bytes32 => string) private _projectNameByRequestId;
 
-    mapping (string => uint) public certificateCybersecurityScoreByExchange;
-    mapping (string => string) public certificatePenetrationTestStatusByExchange;
-    mapping (string => uint) public certificatePenetrationTestActiveUntilByExchange;
-    mapping (string => string) public certificateBugBountyStatusByExchange;
-    mapping (string => string) public certificateProofOfFundsStatusByExchange;
+    mapping (string => uint) public override certificateCybersecurityScoreByExchange;
+    mapping (string => string) public override certificatePenetrationTestStatusByExchange;
+    mapping (string => uint) public override certificatePenetrationTestActiveUntilByExchange;
+    mapping (string => string) public override certificateBugBountyStatusByExchange;
+    mapping (string => string) public override certificateProofOfFundsStatusByExchange;
 
-    mapping (string => string) public defiAuditByProject;
-    mapping (string => uint) public defiLastAuditDateByProject;
-    mapping (string => string) public defiBugBountyByProject;
-
-    event RequestCertificateValidationFulfilled(
-        bytes32 indexed requestId,
-        bool indexed valid
-    );
-
-    event RequestDefiValidationFulfilled(
-        bytes32 indexed requestId,
-        bool indexed valid
-    );
-
-    event RequestCertificateCybersecurityScoreFulfilled(
-        bytes32 indexed requestId,
-        uint indexed cybersecurityScore
-    );
-
-    event RequestCertificatePenetrationTestStatusFulfilled(
-        bytes32 indexed requestId,
-        bytes32 indexed penetrationTestStatus
-    );
-
-    event RequestCertificatePenetrationTestActiveUntilFulfilled(
-        bytes32 indexed requestId,
-        uint indexed penetrationTestActiveUntil
-    );
-
-    event RequestCertificateBugBountyStatusFulfilled(
-        bytes32 indexed requestId,
-        bytes32 indexed bugBountyStatus
-    );
-
-    event RequestCertificateProofOfFundsStatusFulfilled(
-        bytes32 indexed requestId,
-        bytes32 indexed proofOfFundsStatus
-    );
-
-    event RequestDefiAuditFulfilled(
-        bytes32 indexed requestId,
-        bytes32 indexed audit
-    );
-
-    event RequestDefiLastAuditDateFulfilled(
-        bytes32 indexed requestId,
-        uint indexed lastAuditDate
-    );
-
-    event RequestDefiBugBountyFulfilled(
-        bytes32 indexed requestId,
-        bytes32 indexed bugBounty
-    );
+    mapping (string => string) public override defiAuditByProject;
+    mapping (string => uint) public override defiLastAuditDateByProject;
+    mapping (string => string) public override defiBugBountyByProject;
 
     constructor(
         address _link,
@@ -95,9 +47,7 @@ contract CER is ChainlinkClient, Ownable {
         string memory _defiLastAuditDateJobId,
         string memory _defiBugBountyJobId,
         uint256 _oraclePayment
-    )
-        public
-    {
+    ) public {
         setChainlinkToken(_link);
         setChainlinkOracle(_oracle);
         REQUEST_VALIDATION_JOB_ID = _validationJobId;
@@ -112,27 +62,27 @@ contract CER is ChainlinkClient, Ownable {
         REQUEST_DEFI_LAST_AUDIT_DATE_JOB_ID = _defiLastAuditDateJobId;
         REQUEST_DEFI_BUG_BOUNTY_JOB_ID = _defiBugBountyJobId;
 
-        ORACLE_PAYMENT = _oraclePayment;
+        oraclePayment = _oraclePayment;
     }
 
-    function updateOraclePayment(uint256 _oraclePayment) external onlyOwner {
-        ORACLE_PAYMENT = _oraclePayment;
+    function refillNodeETHBalance(address payable _node) external payable override {
+        require(OracleInterface(chainlinkOracleAddress()).getAuthorizationStatus(_node), "CER: unauthorized node");
+        _node.transfer(msg.value);
     }
 
-    function updateOracleAddress(address _oracle) external onlyOwner {
+    function updateOraclePayment(uint256 _oraclePayment) external override onlyOwner {
+        oraclePayment = _oraclePayment;
+    }
+
+    function updateOracleAddress(address _oracle) external override onlyOwner {
         setChainlinkOracle(_oracle);
     }
 
-    function updateChainlinkToken(address _link) external onlyOwner {
+    function updateChainlinkToken(address _link) external override onlyOwner {
         setChainlinkToken(_link);
     }
 
-    function updateCalidationJobId(
-        string calldata _validationJobId
-    )
-        external
-        onlyOwner
-    {
+    function updateCalidationJobId(string calldata _validationJobId) external override onlyOwner {
         REQUEST_VALIDATION_JOB_ID = _validationJobId;
     }
 
@@ -144,6 +94,7 @@ contract CER is ChainlinkClient, Ownable {
         string calldata _certificateProofOfFundsStatusJobId
     )
         external
+        override
         onlyOwner
     {
         REQUEST_CERTIFICATE_CYBERSECURITY_SCORE_JOB_ID = _certificateCybersecurityScoreJobId;
@@ -159,6 +110,7 @@ contract CER is ChainlinkClient, Ownable {
         string calldata _defiBugBountyJobId
     )
         external
+        override
         onlyOwner
     {
         REQUEST_DEFI_AUDIT_JOB_ID = _defiAuditJobId;
@@ -166,10 +118,42 @@ contract CER is ChainlinkClient, Ownable {
         REQUEST_DEFI_BUG_BOUNTY_JOB_ID = _defiBugBountyJobId;
     }
 
-    function requestCertificateValidation(string calldata _exchange)
-        external
+    function exchangeDetails(string calldata exchange) 
+        external 
+        view 
+        override
+        returns (
+            uint cybersecurityScore, 
+            string memory penetrationTestStatus,
+            uint penetrationTestActiveUntil,
+            string memory bugBountyStatus,
+            string memory proofOfFundsStatus
+        ) 
     {
-        require(IERC20(chainlinkTokenAddress()).transferFrom(msg.sender, address(this), ORACLE_PAYMENT), "Unable to transfer");
+        cybersecurityScore = certificateCybersecurityScoreByExchange[exchange];
+        penetrationTestStatus = certificatePenetrationTestStatusByExchange[exchange];
+        penetrationTestActiveUntil = certificatePenetrationTestActiveUntilByExchange[exchange];
+        bugBountyStatus = certificateBugBountyStatusByExchange[exchange];
+        proofOfFundsStatus = certificateProofOfFundsStatusByExchange[exchange];
+    }
+
+    function defiDetails(string calldata project) 
+        external 
+        view 
+        override
+        returns (
+            string memory audit,
+            uint lastAudit,
+            string memory bugBounty
+        ) 
+    {
+        audit = defiAuditByProject[project];
+        lastAudit = defiLastAuditDateByProject[project];
+        bugBounty = defiBugBountyByProject[project];
+    }
+
+    function requestCertificateValidation(string calldata _exchange) external override {
+        require(IERC20(chainlinkTokenAddress()).transferFrom(msg.sender, address(this), oraclePayment), "Unable to transfer");
         bytes memory urlBytes;
         urlBytes = abi.encodePacked("https://cer.live/historical/certificates/validate?exchange=");
         urlBytes = abi.encodePacked(urlBytes, _exchange);
@@ -180,14 +164,12 @@ contract CER is ChainlinkClient, Ownable {
             this.fulfillCertificateValidation.selector
         );
         req.add("get", string(urlBytes));
-        bytes32 id = sendChainlinkRequestTo(chainlinkOracleAddress(), req, ORACLE_PAYMENT);
+        bytes32 id = sendChainlinkRequestTo(chainlinkOracleAddress(), req, oraclePayment);
         _exchangeNameByRequestId[id] = _exchange;
     }
 
-    function requestDefiValidation(string calldata _projectName)
-        external
-    {
-        require(IERC20(chainlinkTokenAddress()).transferFrom(msg.sender, address(this), ORACLE_PAYMENT), "Unable to transfer");
+    function requestDefiValidation(string calldata _projectName) external override {
+        require(IERC20(chainlinkTokenAddress()).transferFrom(msg.sender, address(this), oraclePayment), "Unable to transfer");
         bytes memory urlBytes;
         urlBytes = abi.encodePacked("https://cer.live/historical/defi/validate?projectName=");
         urlBytes = abi.encodePacked(urlBytes, _projectName);
@@ -198,14 +180,12 @@ contract CER is ChainlinkClient, Ownable {
             this.fulfillDefiValidation.selector
         );
         req.add("get", string(urlBytes));
-        bytes32 id = sendChainlinkRequestTo(chainlinkOracleAddress(), req, ORACLE_PAYMENT);
+        bytes32 id = sendChainlinkRequestTo(chainlinkOracleAddress(), req, oraclePayment);
         _projectNameByRequestId[id] = _projectName;
     }
 
-    function requestCertificateCybersecurityScore(string calldata _exchange)
-        external
-    {
-        require(IERC20(chainlinkTokenAddress()).transferFrom(msg.sender, address(this), ORACLE_PAYMENT), "Unable to transfer");
+    function requestCertificateCybersecurityScore(string calldata _exchange) external override {
+        require(IERC20(chainlinkTokenAddress()).transferFrom(msg.sender, address(this), oraclePayment), "Unable to transfer");
         bytes memory urlBytes;
         urlBytes = abi.encodePacked("https://cer.live/historical/certificates?exchange=");
         urlBytes = abi.encodePacked(urlBytes, _exchange);
@@ -217,14 +197,12 @@ contract CER is ChainlinkClient, Ownable {
         );
 
         req.add("get", string(urlBytes));
-        bytes32 id = sendChainlinkRequestTo(chainlinkOracleAddress(), req, ORACLE_PAYMENT);
+        bytes32 id = sendChainlinkRequestTo(chainlinkOracleAddress(), req, oraclePayment);
         _exchangeNameByRequestId[id] = _exchange;
     }
 
-    function requestCertificatePenetrationTestStatus(string calldata _exchange)
-        external
-    {
-        require(IERC20(chainlinkTokenAddress()).transferFrom(msg.sender, address(this), ORACLE_PAYMENT), "Unable to transfer");
+    function requestCertificatePenetrationTestStatus(string calldata _exchange) external override {
+        require(IERC20(chainlinkTokenAddress()).transferFrom(msg.sender, address(this), oraclePayment), "Unable to transfer");
         bytes memory urlBytes;
         urlBytes = abi.encodePacked("https://cer.live/historical/certificates?exchange=");
         urlBytes = abi.encodePacked(urlBytes, _exchange);
@@ -236,14 +214,12 @@ contract CER is ChainlinkClient, Ownable {
         );
 
         req.add("get", string(urlBytes));
-        bytes32 id = sendChainlinkRequestTo(chainlinkOracleAddress(), req, ORACLE_PAYMENT);
+        bytes32 id = sendChainlinkRequestTo(chainlinkOracleAddress(), req, oraclePayment);
         _exchangeNameByRequestId[id] = _exchange;
     }
 
-    function requestCertificatePenetrationTestActiveUntil(string calldata _exchange)
-        external
-    {
-        require(IERC20(chainlinkTokenAddress()).transferFrom(msg.sender, address(this), ORACLE_PAYMENT), "Unable to transfer");
+    function requestCertificatePenetrationTestActiveUntil(string calldata _exchange) external override {
+        require(IERC20(chainlinkTokenAddress()).transferFrom(msg.sender, address(this), oraclePayment), "Unable to transfer");
         bytes memory urlBytes;
         urlBytes = abi.encodePacked("https://cer.live/historical/certificates?exchange=");
         urlBytes = abi.encodePacked(urlBytes, _exchange);
@@ -255,14 +231,12 @@ contract CER is ChainlinkClient, Ownable {
         );
 
         req.add("get", string(urlBytes));
-        bytes32 id = sendChainlinkRequestTo(chainlinkOracleAddress(), req, ORACLE_PAYMENT);
+        bytes32 id = sendChainlinkRequestTo(chainlinkOracleAddress(), req, oraclePayment);
         _exchangeNameByRequestId[id] = _exchange;
     }
 
-    function requestCertificateBugBountyStatus(string calldata _exchange)
-        external
-    {
-        require(IERC20(chainlinkTokenAddress()).transferFrom(msg.sender, address(this), ORACLE_PAYMENT), "Unable to transfer");
+    function requestCertificateBugBountyStatus(string calldata _exchange) external override {
+        require(IERC20(chainlinkTokenAddress()).transferFrom(msg.sender, address(this), oraclePayment), "Unable to transfer");
         bytes memory urlBytes;
         urlBytes = abi.encodePacked("https://cer.live/historical/certificates?exchange=");
         urlBytes = abi.encodePacked(urlBytes, _exchange);
@@ -274,14 +248,12 @@ contract CER is ChainlinkClient, Ownable {
         );
 
         req.add("get", string(urlBytes));
-        bytes32 id = sendChainlinkRequestTo(chainlinkOracleAddress(), req, ORACLE_PAYMENT);
+        bytes32 id = sendChainlinkRequestTo(chainlinkOracleAddress(), req, oraclePayment);
         _exchangeNameByRequestId[id] = _exchange;
     }
 
-    function requestCertificateProofOfFundsStatus(string calldata _exchange)
-        external
-    {
-        require(IERC20(chainlinkTokenAddress()).transferFrom(msg.sender, address(this), ORACLE_PAYMENT), "Unable to transfer");
+    function requestCertificateProofOfFundsStatus(string calldata _exchange) external override {
+        require(IERC20(chainlinkTokenAddress()).transferFrom(msg.sender, address(this), oraclePayment), "Unable to transfer");
         bytes memory urlBytes;
         urlBytes = abi.encodePacked("https://cer.live/historical/certificates?exchange=");
         urlBytes = abi.encodePacked(urlBytes, _exchange);
@@ -293,14 +265,12 @@ contract CER is ChainlinkClient, Ownable {
         );
 
         req.add("get", string(urlBytes));
-        bytes32 id = sendChainlinkRequestTo(chainlinkOracleAddress(), req, ORACLE_PAYMENT);
+        bytes32 id = sendChainlinkRequestTo(chainlinkOracleAddress(), req, oraclePayment);
         _exchangeNameByRequestId[id] = _exchange;
     }
 
-    function requestDefiAudit(string calldata _projectName)
-        external
-    {
-        require(IERC20(chainlinkTokenAddress()).transferFrom(msg.sender, address(this), ORACLE_PAYMENT), "Unable to transfer");
+    function requestDefiAudit(string calldata _projectName) external override {
+        require(IERC20(chainlinkTokenAddress()).transferFrom(msg.sender, address(this), oraclePayment), "Unable to transfer");
         bytes memory urlBytes;
         urlBytes = abi.encodePacked("https://cer.live/historical/defi?projectName=");
         urlBytes = abi.encodePacked(urlBytes, _projectName);
@@ -312,14 +282,12 @@ contract CER is ChainlinkClient, Ownable {
         );
 
         req.add("get", string(urlBytes));
-        bytes32 id = sendChainlinkRequestTo(chainlinkOracleAddress(), req, ORACLE_PAYMENT);
+        bytes32 id = sendChainlinkRequestTo(chainlinkOracleAddress(), req, oraclePayment);
         _projectNameByRequestId[id] = _projectName;
     }
 
-    function requestDefiLastAuditDate(string calldata _projectName)
-        external
-    {
-        require(IERC20(chainlinkTokenAddress()).transferFrom(msg.sender, address(this), ORACLE_PAYMENT), "Unable to transfer");
+    function requestDefiLastAuditDate(string calldata _projectName) external override {
+        require(IERC20(chainlinkTokenAddress()).transferFrom(msg.sender, address(this), oraclePayment), "Unable to transfer");
         bytes memory urlBytes;
         urlBytes = abi.encodePacked("https://cer.live/historical/defi?projectName=");
         urlBytes = abi.encodePacked(urlBytes, _projectName);
@@ -331,14 +299,12 @@ contract CER is ChainlinkClient, Ownable {
         );
 
         req.add("get", string(urlBytes));
-        bytes32 id = sendChainlinkRequestTo(chainlinkOracleAddress(), req, ORACLE_PAYMENT);
+        bytes32 id = sendChainlinkRequestTo(chainlinkOracleAddress(), req, oraclePayment);
         _projectNameByRequestId[id] = _projectName;
     }
 
-    function requestDefiBugBounty(string calldata _projectName)
-        external
-    {
-        require(IERC20(chainlinkTokenAddress()).transferFrom(msg.sender, address(this), ORACLE_PAYMENT), "Unable to transfer");
+    function requestDefiBugBounty(string calldata _projectName) external override {
+        require(IERC20(chainlinkTokenAddress()).transferFrom(msg.sender, address(this), oraclePayment), "Unable to transfer");
         bytes memory urlBytes;
         urlBytes = abi.encodePacked("https://cer.live/historical/defi?projectName=");
         urlBytes = abi.encodePacked(urlBytes, _projectName);
@@ -350,12 +316,13 @@ contract CER is ChainlinkClient, Ownable {
         );
 
         req.add("get", string(urlBytes));
-        bytes32 id = sendChainlinkRequestTo(chainlinkOracleAddress(), req, ORACLE_PAYMENT);
+        bytes32 id = sendChainlinkRequestTo(chainlinkOracleAddress(), req, oraclePayment);
         _projectNameByRequestId[id] = _projectName;
     }
 
     function fulfillCertificateValidation(bytes32 _requestId, bool _valid)
         external
+        override
         recordChainlinkFulfillment(_requestId)
     {
         emit RequestCertificateValidationFulfilled(_requestId, _valid);
@@ -372,6 +339,7 @@ contract CER is ChainlinkClient, Ownable {
 
     function fulfillDefiValidation(bytes32 _requestId, bool _valid)
         external
+        override 
         recordChainlinkFulfillment(_requestId)
     {
         emit RequestDefiValidationFulfilled(_requestId, _valid);
@@ -386,6 +354,7 @@ contract CER is ChainlinkClient, Ownable {
 
     function fulfillCertificateCybersecurityScore(bytes32 _requestId, uint _cybersecuityScore)
         external
+        override 
         recordChainlinkFulfillment(_requestId)
     {
         emit RequestCertificateCybersecurityScoreFulfilled(_requestId, _cybersecuityScore);
@@ -395,6 +364,7 @@ contract CER is ChainlinkClient, Ownable {
 
     function fulfillCertificatePenetrationTestStatus(bytes32 _requestId, bytes32 _penetrationTestStatus)
         external
+        override 
         recordChainlinkFulfillment(_requestId)
     {
         emit RequestCertificatePenetrationTestStatusFulfilled(_requestId, _penetrationTestStatus);
@@ -404,6 +374,7 @@ contract CER is ChainlinkClient, Ownable {
 
     function fulfillCertificatePenetrationTestActiveUntil(bytes32 _requestId, uint _penetrationTestActiveUntil)
         external
+        override 
         recordChainlinkFulfillment(_requestId)
     {
         emit RequestCertificatePenetrationTestActiveUntilFulfilled(_requestId, _penetrationTestActiveUntil);
@@ -413,6 +384,7 @@ contract CER is ChainlinkClient, Ownable {
 
     function fulfillCertificateBugBountyStatus(bytes32 _requestId, bytes32 _bugBountyStatus)
         external
+        override 
         recordChainlinkFulfillment(_requestId)
     {
         emit RequestCertificateBugBountyStatusFulfilled(_requestId, _bugBountyStatus);
@@ -422,6 +394,7 @@ contract CER is ChainlinkClient, Ownable {
 
     function fulfillCertificateProofOfFundsStatus(bytes32 _requestId, bytes32 _proofOfFundsStatus)
         external
+        override 
         recordChainlinkFulfillment(_requestId)
     {
         emit RequestCertificateProofOfFundsStatusFulfilled(_requestId, _proofOfFundsStatus);
@@ -431,6 +404,7 @@ contract CER is ChainlinkClient, Ownable {
 
     function fulfillDefiAudit(bytes32 _requestId, bytes32 _audit)
         external
+        override 
         recordChainlinkFulfillment(_requestId)
     {
         emit RequestDefiAuditFulfilled(_requestId, _audit);
@@ -440,6 +414,7 @@ contract CER is ChainlinkClient, Ownable {
 
     function fulfillDefiLastAuditDate(bytes32 _requestId, uint _lastAuditDate)
         external
+        override 
         recordChainlinkFulfillment(_requestId)
     {
         emit RequestDefiLastAuditDateFulfilled(_requestId, _lastAuditDate);
@@ -449,6 +424,7 @@ contract CER is ChainlinkClient, Ownable {
 
     function fulfillDefiBugBounty(bytes32 _requestId, bytes32 _bugBounty)
         external
+        override 
         recordChainlinkFulfillment(_requestId)
     {
         emit RequestDefiBugBountyFulfilled(_requestId, _bugBounty);
