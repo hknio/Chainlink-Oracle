@@ -10,9 +10,9 @@ async function main() {
   const linkAddress = assertNotEmpty('LINK_CONTRACT_ADDRESS', process.env.LINK_CONTRACT_ADDRESS);
   const nodeAddress = assertNotEmpty('CHAINLINK_NODE_ADDRESS', process.env.CHAINLINK_NODE_ADDRESS);
   const account = (await ethers.getSigners())[0];
-  const Oracle = await new OracleFactory(account).deploy(linkAddress, overrides);
-  console.log('Deployed Oracle contract to: ', Oracle.address);
-  await Oracle.setFulfillmentPermission(nodeAddress, true, overrides);
+  const oracle = await new OracleFactory(account).deploy(linkAddress, overrides);
+  console.log('Deployed Oracle contract to: ', oracle.address);
+  await oracle.setFulfillmentPermission(nodeAddress, true, overrides);
   console.log('Set fulfillment permission for: ', nodeAddress);
 }
 
