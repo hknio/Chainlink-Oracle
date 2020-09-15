@@ -32,7 +32,7 @@ const config: BuidlerConfig = {
       timeout: 100000,
     },
     main: {
-      url: `https://infura.io/v3/${process.env.INFURA_API_KEY}`,
+      url: `https://mainnet.infura.io/v3/${process.env.INFURA_API_KEY}`,
       accounts: [secret],
     },
     coverage: {
