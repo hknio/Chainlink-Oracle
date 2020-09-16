@@ -1,3 +1,6 @@
+# CER Oracle
+CER Oracle provides Security Audit Data for DeFi and crypto exchanges. The data produced from the audits are submitted to the CER.live platform, where Chainlink nodes can retrieve the data and make it available for smart contracts to consume as needed. Users can use an aggregation of multiple independent Chainlink Nodes to ensure the availability and tamperproofness of the data delivery process.
+
 #  Installation
 1. Make sure to use node 10.20.1
 2. Run `npm install` in project root directory
