@@ -6,6 +6,8 @@ CER Oracle provides Security Audit Data for DeFi and crypto exchanges. The data 
 #### Query exchange details
 
 ```JavaScript 
+const CERAddress = '0x0b9Ee1CaA4Ed3cCBb77E22Ce6268c63563D8DD69';
+const CERContract = new web3.eth.Contract(CER_ABI, CERAddress);
 const {
   cybersecurityScore, 
   penetrationTestStatus, 
@@ -18,6 +20,8 @@ const {
 #### Query DeFi details
 
 ```JavaScript 
+const CERAddress = '0x0b9Ee1CaA4Ed3cCBb77E22Ce6268c63563D8DD69';
+const CERContract = new web3.eth.Contract(CER_ABI, CERAddress);
 const {
   audit,
   lastAudit,
